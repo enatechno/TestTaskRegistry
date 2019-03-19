@@ -1,0 +1,14 @@
+__history/
+__recovery/
+*.identcache
+*.*.local
+*.dsk
+*.stat
+*.mes
+*.drc
+*.map
+*.~*
+bugreport.txt
+commit_push.bat
+*.*.orig
+*.bak
