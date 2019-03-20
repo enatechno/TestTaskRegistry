@@ -21,14 +21,32 @@ type
     FStartKeyName: string;
 
     class function Is64BitWindows: Boolean; static;
+    /// <summary>
+    /// Инициализация отображения в консоли строки прогресса поиска
+    /// </summary>
     procedure InitProgress;
+
+    /// <summary>
+    /// Запись результатов поиска в файл result.txt, расположенный рядом с .exe
+    /// </summary>
     procedure SaveSearchResult;
   public
     constructor Create;
     destructor Destroy; override;
 
+    /// <summary>
+    /// Получение исходных данных от пользователя
+    /// </summary>
     procedure GetSourceData;
+
+    /// <summary>
+    /// Поиск ключей и отображение результатов поиска в консоли
+    /// </summary>
     procedure SearchKeyNames;
+
+    /// <summary>
+    /// Отображение текущего прогресса в консоли при поиске
+    /// </summary>
     procedure ShowProgress(Sender: TObject);
   end;
 
@@ -84,7 +102,6 @@ begin
 {$ENDIF}
 end;
 
-/// инициализация отображения строки прогресса поиска
 procedure TMyTestTask.InitProgress;
 begin
   FMyRegistry.CurProgress := 0;
@@ -92,7 +109,6 @@ begin
   FMyRegistry.OnProgressChanged := ShowProgress;
 end;
 
-/// отображение текущего прогресса при поиске
 procedure TMyTestTask.ShowProgress(Sender: TObject);
 begin
   if FMyRegistry.CurProgress > 100 then
@@ -100,7 +116,6 @@ begin
   Write(#8#8#8#8, FMyRegistry.CurProgress:3, '%');
 end;
 
-/// получение исходных данных от пользователя
 procedure TMyTestTask.GetSourceData;
 begin
   Writeln('Введите начальный узел для поиска (или оставьте значение пустым) и нажмите Enter:');
@@ -109,7 +124,7 @@ begin
   Readln(FMyRegistry.TemplateStr);
 end;
 
-/// поиск и отображение результатов поиска в консоли
+
 procedure TMyTestTask.SearchKeyNames;
 var
   i: integer;
@@ -138,7 +153,7 @@ begin
     Writeln(#13 + 'Ключи по шаблону не найдены.');
 end;
 
-/// запись результатов поиска в файл result.txt, расположенный рядом с .exe
+
 procedure TMyTestTask.SaveSearchResult;
 begin
   try

@@ -17,14 +17,17 @@ type
     class var OnProgressChanged: TNotifyEvent; // событие изменения прогресса
     class var TemplateStr: string; // шаблонная строка для поиска
 
-    /// регистронезависимый поиск по шаблону в заданном StartKeyName и всех
+    /// <summary>
+    /// Регистронезависимый поиск по шаблону в заданном StartKeyName и всех
     /// вложенных (по отношению к заданному) ключах реестра
+    /// </summary>
+    /// <param name='StartKeyName'>имя узла, в котором осуществляется поиск</param>
+    /// <param name='FoundKeyNames'>список найденных ключей, соответствующих критерию поиска</param>
+    /// <param name='NotOpenedKeys'>список ключей, которые не были открыты</param>
+    /// <param name='StepProgress'>часть от общего прогресса поиска для текущего узла</param>
     procedure SearchKeysByTemplate(const StartKeyName: string;
-      // имя узла, в котором осуществляется поиск
-      FoundKeyNames, // перечень ключей, соответствующих критерию поиска
-      NotOpenedKeys: TStringList; // перечень ключей, которые не были открыты
-      StepProgress: integer);
-    // часть от общего прогресса поиска для текущего узла
+      FoundKeyNames, NotOpenedKeys: TStringList; StepProgress: integer);
+
   end;
 
 implementation
@@ -36,6 +39,7 @@ var
   Keys: TStringList;
   KeyName: string;
   MyReg: TMyRegistry;
+  ErrorStr: string;
 begin
   MyReg := TMyRegistry.Create;
   try
@@ -78,7 +82,8 @@ begin
       end
     else
     begin
-      NotOpenedKeys.Add(StartKeyName);
+      ErrorStr := SysErrorMessage(GetLastError);
+      NotOpenedKeys.Add(Format('%s ---> %s', [StartKeyName, ErrorStr]));
       if StepProgress <> 100 then
         MyReg.ChangeProgress(StepProgress);
     end;
