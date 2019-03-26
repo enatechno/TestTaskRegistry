@@ -11,11 +11,15 @@ uses
 type
   TMyRegistry = class(TRegistry)
   private
-    procedure ChangeProgress(StepProgress: integer);
+    procedure ChangeProgress(StepProgress: Extended);
+    function Clone: TMyRegistry;
   public
-    class var CurProgress: integer; // текущее значение прогресса поиска
+    class var CurProgress: Extended; // текущее значение прогресса поиска
+    class var ProgressValue: integer;  // округленное значение прогресса
     class var OnProgressChanged: TNotifyEvent; // событие изменения прогресса
     class var TemplateStr: string; // шаблонная строка для поиска
+
+    procedure InitProgress;
 
     /// <summary>
     /// Регистронезависимый поиск по шаблону в заданном StartKeyName и всех
@@ -24,16 +28,29 @@ type
     /// <param name='StartKeyName'>имя узла, в котором осуществляется поиск</param>
     /// <param name='FoundKeyNames'>список найденных ключей, соответствующих критерию поиска</param>
     /// <param name='NotOpenedKeys'>список ключей, которые не были открыты</param>
-    /// <param name='StepProgress'>часть от общего прогресса поиска для текущего узла</param>
+    /// <param name='StepProgress'>часть (в %) от общего прогресса поиска для текущего узла</param>
     procedure SearchKeysByTemplate(const StartKeyName: string;
-      FoundKeyNames, NotOpenedKeys: TStringList; StepProgress: integer);
+      FoundKeyNames, NotOpenedKeys: TStringList; StepProgress: Extended);
 
   end;
 
 implementation
 
+procedure TMyRegistry.InitProgress;
+begin
+  CurProgress := 0;
+  ProgressValue := 0;
+end;
+
+function TMyRegistry.Clone: TMyRegistry;
+begin
+  Result := TMyRegistry.Create;
+  Result.RootKey := Self.RootKey;
+  Result.Access := Self.Access;
+end;
+
 procedure TMyRegistry.SearchKeysByTemplate(const StartKeyName: string;
-  FoundKeyNames, NotOpenedKeys: TStringList; StepProgress: integer);
+  FoundKeyNames, NotOpenedKeys: TStringList; StepProgress: Extended);
 var
   I: integer;
   Keys: TStringList;
@@ -41,11 +58,8 @@ var
   MyReg: TMyRegistry;
   ErrorStr: string;
 begin
-  MyReg := TMyRegistry.Create;
+  MyReg := Self.Clone;
   try
-    MyReg.RootKey := Self.RootKey;
-    MyReg.Access := Self.Access;
-
     // открытие заданного узла
     if MyReg.OpenKeyReadOnly(StartKeyName) then
       try
@@ -54,7 +68,7 @@ begin
           MyReg.GetKeyNames(Keys); // получение списка вложенных ключей
           if Keys.Count > 0 then
           begin
-            StepProgress := Trunc(StepProgress / Keys.Count);
+            StepProgress := StepProgress / Keys.Count;
             for I := 0 to Keys.Count - 1 do
             begin
               // получение полного имени ключа
@@ -73,32 +87,41 @@ begin
             end;
           end
           else
+            // если узел не имеет вложенных ключей, то работа с ним завершена и
+            // часть отведенного ему прогресса добавляется в общий
             MyReg.ChangeProgress(StepProgress);
         finally
-          Keys.Free;
+          FreeAndNil(Keys);
         end;
       finally
         MyReg.CloseKey;
       end
     else
     begin
-      ErrorStr := SysErrorMessage(GetLastError);
-      NotOpenedKeys.Add(Format('%s ---> %s', [StartKeyName, ErrorStr]));
-      if StepProgress <> 100 then
+      //ErrorStr := SysErrorMessage(GetLastError);
+      NotOpenedKeys.Add(StartKeyName);
+
+      // не открывшийся узел - это тоже прогресс
+      // (за исключением когда не открылся самый первый узел у которого StepProgress = 100)
+      if StepProgress < 100 then
         MyReg.ChangeProgress(StepProgress);
     end;
-
   finally
-    MyReg.Free;
+    FreeAndNil(MyReg);
   end;
 end;
 
-procedure TMyRegistry.ChangeProgress(StepProgress: integer);
+procedure TMyRegistry.ChangeProgress(StepProgress: Extended);
+var
+  i: integer;
 begin
-  if StepProgress = 0 then
+  CurProgress := CurProgress + StepProgress;
+  i := Trunc(CurProgress);
+
+  if ProgressValue = i then  // изменилось ли округленное значение прогресса
     Exit;
 
-  CurProgress := CurProgress + StepProgress;
+  ProgressValue := i;
 
   if Assigned(OnProgressChanged) then
     OnProgressChanged(nil);

@@ -13,10 +13,12 @@ type
   TMyTestTask = class // класс, выполняющий основные функции программы
   const
     RESULT_FILE_NAME = 'result.txt';
+    NOT_OPENED_FILE_NAME = 'not_opened.txt';
   private
     FMyRegistry: TMyRegistry;
     FFoundKeyNames: TStringList;
     FNotOpenedKeyNames: TStringList;
+    FExePath: string;
 
     FStartKeyName: string;
 
@@ -30,6 +32,10 @@ type
     /// Запись результатов поиска в файл result.txt, расположенный рядом с .exe
     /// </summary>
     procedure SaveSearchResult;
+    /// <summary>
+    /// Запись списка не открытых узлов в файл not_opened.txt, расположенный рядом с .exe
+    /// </summary>
+    procedure SaveNotOpenedList;
   public
     constructor Create;
     destructor Destroy; override;
@@ -66,6 +72,8 @@ begin
 
   FFoundKeyNames := TStringList.Create;
   FNotOpenedKeyNames := TStringList.Create;
+
+  FExePath := ExtractFilePath(ParamStr(0));
 end;
 
 destructor TMyTestTask.Destroy;
@@ -104,16 +112,16 @@ end;
 
 procedure TMyTestTask.InitProgress;
 begin
-  FMyRegistry.CurProgress := 0;
+  FMyRegistry.InitProgress;
   Write('Поиск:   0%');
   FMyRegistry.OnProgressChanged := ShowProgress;
 end;
 
 procedure TMyTestTask.ShowProgress(Sender: TObject);
 begin
-  if FMyRegistry.CurProgress > 100 then
+  if FMyRegistry.ProgressValue > 100 then
     Exit;
-  Write(#8#8#8#8, FMyRegistry.CurProgress:3, '%');
+  Write(#8#8#8#8, FMyRegistry.ProgressValue:3, '%');
 end;
 
 procedure TMyTestTask.GetSourceData;
@@ -140,13 +148,21 @@ begin
   end;
 
   if FNotOpenedKeyNames.Count > 0 then
-    for i := 0 to FNotOpenedKeyNames.Count - 1 do
-      Writeln(Format(#13 + 'Ошибка чтения ключа %s', [FNotOpenedKeyNames[i]]));
+  begin
+    if FNotOpenedKeyNames.Count > 1 then
+    begin
+      SaveNotOpenedList;
+      Writeln(Format(#13 + 'Ошибки чтения ключей: %d. Перечень в файле %s.',
+        [FNotOpenedKeyNames.Count, NOT_OPENED_FILE_NAME]));
+    end
+    else
+      Writeln(Format(#13 + 'Ошибка чтения ключа %s', [FNotOpenedKeyNames[0]]));
+  end;
 
   if FFoundKeyNames.Count > 0 then
   begin
     SaveSearchResult;
-    Writeln(Format(#13 + 'Найдено ключей: %d. Результаты поиска в файле %s',
+    Writeln(Format(#13 + 'Найдено ключей: %d. Результаты поиска в файле %s.',
       [FFoundKeyNames.Count, RESULT_FILE_NAME]));
   end
   else
@@ -157,12 +173,23 @@ end;
 procedure TMyTestTask.SaveSearchResult;
 begin
   try
-    FFoundKeyNames.SaveToFile(RESULT_FILE_NAME);
+    FFoundKeyNames.SaveToFile(FExePath + RESULT_FILE_NAME);
   except
     on E: Exception do
       Writeln('Ошибка записи результатов в файл: ', E.Message);
   end;
 end;
+
+procedure TMyTestTask.SaveNotOpenedList;
+begin
+  try
+    FNotOpenedKeyNames.SaveToFile(FExePath + NOT_OPENED_FILE_NAME);
+  except
+    on E: Exception do
+      Writeln('Ошибка записи перечня не открытых ключей в файл: ', E.Message);
+  end;
+end;
+
 
 ///
 var
